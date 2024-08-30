@@ -43,9 +43,9 @@ export interface AuthSpec {
 ```backend/src/singletons/moopsy-server.ts
 import { authKit } from "./auth";
 
-type PrivateAuthType = AuthenticationSpec["PublicAuthType"]; // <- Here we say that auth.private and auth.public are the same, but you don't have to do this
+type PrivateAuthType = AuthSpec["PublicAuthType"]; // <- Here we say that auth.private and auth.public are the same, but you don't have to do this
 
-function handleAuthLogin(params: AuthenticationSpec["AuthRequestType"]): MoopsySuccessfulAuthResponsePackage<AuthSpec["PublicAuthType"], PrivateAuthType> {
+function handleAuthLogin(params: AuthSpec["AuthRequestType"]): MoopsySuccessfulAuthResponsePackage<AuthSpec["PublicAuthType"], PrivateAuthType> {
     const { userId } = authKit.checkLoginToken({ token: params.plainToken });
 
     // Do whatever logic you want here to get whatever you want public and private auth type to be
@@ -57,7 +57,7 @@ function handleAuthLogin(params: AuthenticationSpec["AuthRequestType"]): MoopsyS
 }
 
 export const server = new MoopsyServer<
-  AuthenticationSpec,
+  AuthSpec,
   PrivateAuthType
 >(
   {
@@ -121,10 +121,15 @@ server.endpoints.register<BP.Plug>(BP, async (params) => {
 Use the same AuthSpec to configure the auth extension
 
 ```frontend/src/singletons/auth.ts
-export const authExtension = new MoopsyClientAuthExtension<AuthSpec.Typings>(
+import { MoopsyClientAuthExtension } from "@moopsyjs/react";
+
+import { client } from "./moopsy-client";
+import { AuthSpec } from '../types/users/auth-spec';
+
+export const authExtension = new MoopsyClientAuthExtension<AuthSpec>(
   client, // <- Your moopsy client
   {
-    autoLoginFunction: async (): AuthSpec["PublicAuthType"] | null => { // <- Auto login function will automatically attempt to login your user when a connection is established
+    autoLoginFunction: async (): Promise<AuthSpec["AuthRequestType"] | null> => { // <- Auto login function will automatically attempt to login your user when a connection is established
       const plainToken = window.localStorage.loginToken; // <- Retrieve the token from local storage
 
       if (plainToken != null) {
