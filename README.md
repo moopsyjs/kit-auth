@@ -51,8 +51,8 @@ function handleAuthLogin(params: AuthenticationSpec["AuthRequestType"]): MoopsyS
     // Do whatever logic you want here to get whatever you want public and private auth type to be
 
     return {
-        public: { uuid: checkLoginToken },
-        private: { uuid: checkLoginToken },
+        public: { uuid: userId },
+        private: { uuid: userId },
     }
 }
 
