@@ -28,7 +28,9 @@ export const authKit = new AuthKit(mongoDB);
 ```
 
 
-### 3. [Server] Create/update your auth spec
+### 3. [Common] Create/update your auth spec
+
+This should be in `common/` as you'll need it on the frontend and the backend:
 
 ```common/src/types/auth/auth-spec.ts
 export interface AuthSpec {
