@@ -1,0 +1,22 @@
+{
+  "name": "@moopsyjs/kit-auth",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./main/index.js",
+  "types": "./main/index.d.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc -p tsconfig.json"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@moopsyjs/core": "^1.0.1",
+    "@types/node": "^18.7.16",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "mongodb": "^6.3.0"
+  }
+}
