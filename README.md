@@ -156,7 +156,7 @@ const loginMutation = client.useMutation<LoginBP.Plug>(LoginBP);
 const login = React.useCallback(async () => {
     const hashedPassword = await hashString(password);
 
-    loginMutation.call({ email, password: hashedPassword })
+    loginMutation.call({ email, password: hashedPassword }) // <- remember this is pseudo-y code, you'll need to get email and password somehow from your form
       .then(res => {
         window.localStorage.loginToken = res.plainToken; // <- Save the login token
         await authExtension.login({ plainToken: res.plainToken }); // <- Call login() directly on authExtension (autoLoginFunction will cover future page loads)
@@ -165,7 +165,7 @@ const login = React.useCallback(async () => {
       .catch(err => {
         alert(err.message);
       });
-}, []);
+}, []); // <- [pseudo warning] probably don't want this to be empty
 
 ...
 ```
