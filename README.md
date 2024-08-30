@@ -45,15 +45,15 @@ import { authKit } from "./auth";
 
 type PrivateAuthType = AuthSpec["PublicAuthType"]; // <- Here we say that auth.private and auth.public are the same, but you don't have to do this
 
-function handleAuthLogin(params: AuthSpec["AuthRequestType"]): MoopsySuccessfulAuthResponsePackage<AuthSpec["PublicAuthType"], PrivateAuthType> {
-    const { userId } = authKit.checkLoginToken({ token: params.plainToken });
+async function handleAuthLogin(params: AuthSpec["AuthRequestType"]): Promise<MoopsySuccessfulAuthResponsePackage<AuthSpec["PublicAuthType"], PrivateAuthType>> {
+  const { userId } = await authKit.checkLoginToken({ token: params.plainToken });
 
-    // Do whatever logic you want here to get whatever you want public and private auth type to be
+  // Do whatever logic you want here to get whatever you want public and private auth type to be
 
-    return {
-        public: { uuid: userId },
-        private: { uuid: userId },
-    }
+  return {
+    public: { uuid: userId },
+    private: { uuid: userId },
+  };
 }
 
 export const server = new MoopsyServer<
