@@ -57,7 +57,7 @@ export class AuthKit {
     const passwordEntry = await this.passwordsCollection.findOne({ userId });
 
     if(passwordEntry == null) {
-      throw new MoopsyError(404, '404');
+      throw new MoopsyError(404, "No password saved for user");
     }
     
     const passwordHash: string = passwordEntry.bcrypt;
@@ -65,7 +65,7 @@ export class AuthKit {
     const match = await bcrypt.compare(password.digest, passwordHash);
 
     if (!match) {
-      throw new MoopsyError(403, 'incorrect-password', 'Incorrect Password');
+      throw new MoopsyError(403, "Incorrect Password");
     }
   }
 
@@ -152,14 +152,14 @@ export class AuthKit {
     const entry = await this.loginTokensCollection.findOne({ hashedToken });
 
     if(entry == null) {
-      throw new MoopsyError(404, '404');
+      throw new MoopsyError(404, "No login token found");
     }
 
     const expires = new Date(entry.issued.valueOf() + (1000 * 60 * 60 * this.loginTokenTTLHours));
 
     if(expires < new Date()) {
       await this.dropToken({ plainToken: token });
-      throw new MoopsyError(404, '404');
+      throw new MoopsyError(404, "No login token found");
     }
 
     return { userId: entry.userId, expires };
