@@ -43,8 +43,8 @@ export class AuthKit {
   }
 
   constructor(private database: Db, private config?: Partial<AuthKitConfigType>) {
-    this.loginTokensCollection = this.database.collection(`authkitloginTokens${config?.collectionNameSuffix}`);
-    this.passwordsCollection = this.database.collection(`authkitpasswords${config?.collectionNameSuffix}`);
+    this.loginTokensCollection = this.database.collection(`authkitloginTokens${config?.collectionNameSuffix ?? ""}`);
+    this.passwordsCollection = this.database.collection(`authkitpasswords${config?.collectionNameSuffix ?? ""}`);
     this.loginTokenBytes = config?.loginTokenBytes ?? DEFAULT_LOGIN_TOKEN_BYTES;
     this.loginTokenTTLHours = config?.loginTokenTTLHours ?? DEFAULT_LOGIN_TOKEN_TTL_HOURS;
   }
