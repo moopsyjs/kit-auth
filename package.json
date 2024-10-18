@@ -1,6 +1,6 @@
 {
   "name": "@moopsyjs/kit-auth",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "main": "./main/index.js",
   "types": "./main/index.d.js",
@@ -12,6 +12,7 @@
   "license": "ISC",
   "devDependencies": {
     "@moopsyjs/core": "^1.0.1",
+    "@types/bcrypt": "^5.0.2",
     "@types/node": "^18.7.16",
     "typescript": "^4.7.4"
   },

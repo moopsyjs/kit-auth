@@ -122,7 +122,7 @@ export class AuthKit {
    * Sets a user password. Will succeed whether a password has or has not already been set, so can be used on user creation
    */
   public readonly setUserPassword = async ({ userId, password, updateReason, invalidateLoginTokens }:{ userId: string, password: AuthKitHashedString, updateReason: string, invalidateLoginTokens: boolean }) => {
-    const bcryptValue = await bcrypt.hash(typeof password !== "string" ? password.digest : await AuthKit.sha256(password).digest, 10);
+    const bcryptValue: string = await bcrypt.hash(typeof password !== "string" ? password.digest : await AuthKit.sha256(password).digest, 10);
 
     await this.passwordsCollection.updateOne(
       { userId },
@@ -138,7 +138,29 @@ export class AuthKit {
     );
 
     if(invalidateLoginTokens) {
-        await this.dropAllLoginTokens({ userId });
+      await this.dropAllLoginTokens({ userId });
+    }
+  }
+
+  /**
+   * Like setUserPassword(), but accepts and stores a raw bcrypt hash. Use with caution. Mostly intended for migrations.
+   */
+  public readonly setUserBcrypt = async ({ userId, bcrypt, updateReason, invalidateLoginTokens }:{ userId: string, bcrypt: string, updateReason: string, invalidateLoginTokens: boolean }) => {
+    await this.passwordsCollection.updateOne(
+      { userId },
+      {
+        $set: {
+          bcrypt,
+          updated: new Date(),
+          updateReason,
+          userId
+        }
+      },
+      { upsert: true }
+    );
+
+    if(invalidateLoginTokens) {
+      await this.dropAllLoginTokens({ userId });
     }
   }
 
