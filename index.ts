@@ -28,6 +28,10 @@ export interface AuthKitConfigType {
   collectionNameSuffix: string;
   loginTokenBytes: number;
   loginTokenTTLHours: number;
+  /**
+   * Allow calling the dangerous_getPasswordRecord method
+   */
+  allowPasswordExport: boolean;
 }
 
 export class AuthKit {
@@ -47,6 +51,24 @@ export class AuthKit {
     this.passwordsCollection = this.database.collection(`authkitpasswords${config?.collectionNameSuffix ?? ""}`);
     this.loginTokenBytes = config?.loginTokenBytes ?? DEFAULT_LOGIN_TOKEN_BYTES;
     this.loginTokenTTLHours = config?.loginTokenTTLHours ?? DEFAULT_LOGIN_TOKEN_TTL_HOURS;
+  }
+
+  /**
+   * Use with extreme caution. Do not use this to validate passwords, the only use cases for this are when you need direct
+   * access to the underlying password hash, for example when migrating data.
+   * 
+   * Returns the password record for a given user, if any. Password record contains bcrypt hash and metadata.
+   * 
+   * In order to call this method, you must set `allowPasswordExport` to true when calling `new AuthKit(...)`.
+   */
+  public readonly dangerous_getPasswordRecord = async ({ userId }:{ userId: string }): Promise<AuthKitPasswordsCollectionEntry | null> => {
+    if (!this.config?.allowPasswordExport) {
+      throw new MoopsyError(403, "Password export not allowed");
+    }
+
+    return await this.passwordsCollection.findOne({
+      userId
+    });
   }
 
   /**
@@ -143,9 +165,14 @@ export class AuthKit {
   }
 
   /**
-   * Like setUserPassword(), but accepts and stores a raw bcrypt hash. Use with caution. Mostly intended for migrations.
+   * Use with caution. Mostly intended for migrations.
+   * 
+   * You should never call this method as it is safer to allow AuthKit to generate the bcrypt hash. This
+   * should typically only be used to migrate data.
+   * 
+   * Like setUserPassword(), but accepts and stores a raw bcrypt hash.
    */
-  public readonly setUserBcrypt = async ({ userId, bcrypt, updateReason, invalidateLoginTokens }:{ userId: string, bcrypt: string, updateReason: string, invalidateLoginTokens: boolean }) => {
+  public readonly dangerous_setUserBcrypt = async ({ userId, bcrypt, updateReason, invalidateLoginTokens }:{ userId: string, bcrypt: string, updateReason: string, invalidateLoginTokens: boolean }) => {
     await this.passwordsCollection.updateOne(
       { userId },
       {
