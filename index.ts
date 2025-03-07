@@ -24,6 +24,13 @@ export interface AuthKitPasswordsCollectionEntry {
   updateReason: string,
 }
 
+export interface AuthKitHistoricPasswordsCollectionEntry {
+  userId: string,
+  bcrypt: string,
+  date: Date,
+  version: number,
+}
+
 export interface AuthKitConfigType {
   collectionNameSuffix: string;
   loginTokenBytes: number;
@@ -32,13 +39,34 @@ export interface AuthKitConfigType {
    * Allow calling the dangerous_getPasswordRecord method
    */
   allowPasswordExport: boolean;
+
+  /**
+   * If true, passwords cannot be reused
+   */
+  preventPasswordReuse: boolean;
+  /**
+   * If preventPasswordReuse is true, this is the number of days that must pass before a password can be reused.
+   * 
+   * Default: 365
+   */
+  passwordReuseTimeLimit: number;
+  /**
+   * If preventPasswordReuse is true, this is the number of versions of a password that are stored.
+   * 
+   * Default: 5
+   */
+  passwordReuseVersions: number;
 }
 
 export class AuthKit {
   private loginTokensCollection: Collection<AuthKitLoginTokensCollectionEntry>;
   private passwordsCollection: Collection<AuthKitPasswordsCollectionEntry>;
+  private historicPasswordsCollection: Collection<AuthKitHistoricPasswordsCollectionEntry>;
   private loginTokenBytes: number;
   private loginTokenTTLHours: number;
+  private passwordReuseVersions: number;
+  private passwordReuseTimeLimit: number;
+  private preventPasswordReuse: boolean;
 
   static sha256 (data: string): AuthKitHashedString {
     const hash = crypto.createHash('sha256');
@@ -51,31 +79,17 @@ export class AuthKit {
     this.passwordsCollection = this.database.collection(`authkitpasswords${config?.collectionNameSuffix ?? ""}`);
     this.loginTokenBytes = config?.loginTokenBytes ?? DEFAULT_LOGIN_TOKEN_BYTES;
     this.loginTokenTTLHours = config?.loginTokenTTLHours ?? DEFAULT_LOGIN_TOKEN_TTL_HOURS;
+    this.preventPasswordReuse = config?.preventPasswordReuse ?? false;
+    this.passwordReuseVersions ?? config?.passwordReuseVersions ?? 5
+    this.passwordReuseTimeLimit ?? config?.passwordReuseTimeLimit ?? 365;
   }
 
   /**
-   * Use with extreme caution. Do not use this to validate passwords, the only use cases for this are when you need direct
-   * access to the underlying password hash, for example when migrating data.
+   * Checks that the correct password is provided for the specified user.
    * 
-   * Returns the password record for a given user, if any. Password record contains bcrypt hash and metadata.
-   * 
-   * In order to call this method, you must set `allowPasswordExport` to true when calling `new AuthKit(...)`.
+   * Returns `true` for correct, `false` for incorrect
    */
-  public readonly dangerous_getPasswordRecord = async ({ userId }:{ userId: string }): Promise<AuthKitPasswordsCollectionEntry | null> => {
-    if (!this.config?.allowPasswordExport) {
-      throw new MoopsyError(403, "Password export not allowed");
-    }
-
-    return await this.passwordsCollection.findOne({
-      userId
-    });
-  }
-
-  /**
-   * Validates that the correct password is provided for the specified user.
-   * Will throw a 403 coded MoopsyError if the password is incorrect
-   */
-  public readonly validateUserPassword = async ({ userId, password }:{ userId: string, password: AuthKitHashedString }): Promise<void> => {
+  public readonly checkUserPassword = async ({ userId, password }:{ userId: string, password: AuthKitHashedString }): Promise<boolean> => {
     const passwordEntry = await this.passwordsCollection.findOne({ userId });
 
     if(passwordEntry == null) {
@@ -85,6 +99,16 @@ export class AuthKit {
     const passwordHash: string = passwordEntry.bcrypt;
     
     const match = await bcrypt.compare(password.digest, passwordHash);
+
+    return match;
+  }
+
+  /**
+   * Validates that the correct password is provided for the specified user.
+   * Will throw a 403 coded MoopsyError if the password is incorrect
+   */
+  public readonly validateUserPassword = async ({ userId, password }:{ userId: string, password: AuthKitHashedString }): Promise<void> => {    
+    const match = await this.checkUserPassword({ userId, password });
 
     if (!match) {
       throw new MoopsyError(403, "Incorrect Password");
@@ -159,32 +183,35 @@ export class AuthKit {
       { upsert: true }
     );
 
-    if(invalidateLoginTokens) {
-      await this.dropAllLoginTokens({ userId });
-    }
-  }
+    if(this.preventPasswordReuse === true) {
+      const historicPasswords = await this.historicPasswordsCollection.find({
+        userId,
+      }, { sort: { date: -1 } }).toArray();
 
-  /**
-   * Use with caution. Mostly intended for migrations.
-   * 
-   * You should never call this method as it is safer to allow AuthKit to generate the bcrypt hash. This
-   * should typically only be used to migrate data.
-   * 
-   * Like setUserPassword(), but accepts and stores a raw bcrypt hash.
-   */
-  public readonly dangerous_setUserBcrypt = async ({ userId, bcrypt, updateReason, invalidateLoginTokens }:{ userId: string, bcrypt: string, updateReason: string, invalidateLoginTokens: boolean }) => {
-    await this.passwordsCollection.updateOne(
-      { userId },
-      {
-        $set: {
-          bcrypt,
-          updated: new Date(),
-          updateReason,
-          userId
+      for(const historicPassword of historicPasswords) {
+        const match: boolean = await bcrypt.compare(password.digest, historicPassword.bcrypt);
+
+        if(match) {
+          throw new MoopsyError(400, "Password has been used before");
         }
-      },
-      { upsert: true }
-    );
+      }
+      
+      const version = historicPasswords[0]?.version ?? 0;
+
+      await this.historicPasswordsCollection.insertOne({
+        userId,
+        bcrypt: bcryptValue,
+        date: new Date(),
+        version: version + 1
+      });
+
+      await this.historicPasswordsCollection.deleteMany({
+        $and: [
+          { userId },
+          { version: { $lt: version - this.passwordReuseVersions }},
+        ]
+      });
+    }
 
     if(invalidateLoginTokens) {
       await this.dropAllLoginTokens({ userId });
